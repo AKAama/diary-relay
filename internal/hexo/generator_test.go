@@ -28,7 +28,7 @@ func TestPreviewRootAndURL(t *testing.T) {
 func TestRewriteHardcodedRootAssets(t *testing.T) {
 	dir := t.TempDir()
 	html := `<link href="/css/style.css"><script src="/js/a.js"></script>` +
-		`<img src="/img/x.png"><a href="/preview/abc/css/already.css">` +
+		`<img src="/img/x.png"><img src="/images/2026/10/a.jpg"><a href="/preview/abc/css/already.css">` +
 		`<link href="https://cdn.example/x.css">`
 	path := filepath.Join(dir, "index.html")
 	if err := os.WriteFile(path, []byte(html), 0o644); err != nil {
@@ -43,6 +43,7 @@ func TestRewriteHardcodedRootAssets(t *testing.T) {
 		`href="/preview/abc/css/style.css"`,
 		`src="/preview/abc/js/a.js"`,
 		`src="/preview/abc/img/x.png"`,
+		`src="/preview/abc/images/2026/10/a.jpg"`,
 		`href="/preview/abc/css/already.css"`,
 		`href="https://cdn.example/x.css"`,
 	} {

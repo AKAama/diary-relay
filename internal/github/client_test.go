@@ -166,3 +166,12 @@ func TestUpdateFileRequiresSHA(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+func TestPutImageRejectsBadPaths(t *testing.T) {
+	c := New("tok", "o", "r", "source", "source/_posts")
+	for _, p := range []string{"source/_posts/x.md", "source/images/../_posts/x.md", "/source/images/a.jpg", "images/a.jpg"} {
+		if _, err := c.PutImage(p, []byte("x"), "m"); err == nil {
+			t.Fatalf("expected reject %q", p)
+		}
+	}
+}

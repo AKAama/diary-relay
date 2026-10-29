@@ -26,6 +26,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /posts/{name}", auth(http.HandlerFunc(s.handleGetPost)))
 	mux.Handle("PUT /posts/{name}", auth(http.HandlerFunc(s.handleUpdatePost)))
 
+	mux.Handle("POST /images", auth(http.HandlerFunc(s.handleUploadImage)))
+
 	previewRoot, _ := filepath.Abs(s.Cfg.PreviewDir)
 	fs := http.FileServer(http.Dir(previewRoot))
 	mux.Handle("/preview/", http.StripPrefix("/preview/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

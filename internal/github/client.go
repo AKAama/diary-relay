@@ -352,3 +352,47 @@ func parseAPIError(body []byte) string {
 	}
 	return s
 }
+
+// ImagesPrefix is the only repo directory PutImage may write to.
+const ImagesPrefix = "source/images/"
+
+// PutImage creates a new binary file at repoPath (must be under source/images/).
+// It never overwrites: an existing path yields a GitHub 422 error.
+func (c *Client) PutImage(repoPath string, data []byte, message string) (commitURL string, err error) {
+	if c.Branch != "source" {
+		return "", fmt.Errorf("refusing to write branch %q (only source allowed)", c.Branch)
+	}
+	clean := path.Clean(repoPath)
+	if clean != repoPath || !strings.HasPrefix(clean, ImagesPrefix) || strings.Contains(clean, "..") {
+		return "", fmt.Errorf("invalid image path %q", repoPath)
+	}
+	payload := map[string]any{
+		"message": message,
+		"content": base64.StdEncoding.EncodeToString(data),
+		"branch":  c.Branch,
+	}
+	raw, _ := json.Marshal(payload)
+	u := fmt.Sprintf("%s/repos/%s/%s/contents/%s", c.BaseURL, c.Owner, c.Repo, clean)
+	req, err := http.NewRequest(http.MethodPut, u, bytes.NewReader(raw))
+	if err != nil {
+		return "", err
+	}
+	c.setHeaders(req)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("put image: %s: %s", resp.Status, parseAPIError(body))
+	}
+	var pr putResponse
+	if err := json.Unmarshal(body, &pr); err != nil {
+		return "", fmt.Errorf("decode put: %w", err)
+	}
+	if pr.Commit.HTMLURL != "" {
+		return pr.Commit.HTMLURL, nil
+	}
+	return pr.Content.HTML, nil
+}

@@ -141,7 +141,7 @@ func previewRootAndURL(baseURL, id string) (root, siteURL string) {
 // hardcodedRootAsset rewrites theme-hardcoded site-root asset URLs
 // (href="/css/…", src="/img/…") so they resolve under the preview root.
 // Paths that already include the preview root (from url_for) are left alone.
-var hardcodedRootAsset = regexp.MustCompile(`(?i)(\b(?:href|src)\s*=\s*["'])/(css|js|img|fonts)/`)
+var hardcodedRootAsset = regexp.MustCompile(`(?i)(\b(?:href|src)\s*=\s*["'])/(css|js|img|fonts|images)/`)
 
 func rewriteHardcodedRootAssets(dir, root string) error {
 	root = strings.TrimRight(root, "/") + "/"

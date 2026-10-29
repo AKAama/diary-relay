@@ -177,3 +177,7 @@ button:not(:disabled):hover { filter: brightness(1.03); }
   border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
 }
 button.hidden { display: none !important; }
+
+.upload-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: -0.4rem 0 0.8rem; }
+.upload-bar .error { color: var(--danger, #c0392b); }
+textarea.dragover { outline: 2px dashed var(--primary); outline-offset: 2px; }

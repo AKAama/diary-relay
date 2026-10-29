@@ -527,4 +527,108 @@
   $("btn-delete").addEventListener("click", deleteDraft);
 
   tryEnter();
+
+  // ---- Image upload (button / paste / drag-drop) ----
+  const MAX_IMAGE = 10 * 1024 * 1024;
+  let uploading = 0;
+
+  function insertAtCursor(text) {
+    const ta = $("field-content");
+    const start = ta.selectionStart ?? ta.value.length;
+    const end = ta.selectionEnd ?? start;
+    const before = ta.value.slice(0, start);
+    const pre = before && !before.endsWith("\n") ? "\n" : "";
+    const ins = pre + text + "\n";
+    ta.value = before + ins + ta.value.slice(end);
+    const pos = start + ins.length;
+    ta.setSelectionRange(pos, pos);
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function setUploadStatus(text, isErr) {
+    const el = $("upload-status");
+    el.textContent = text || "";
+    el.classList.toggle("error", !!isErr);
+  }
+
+  function uploadImage(file) {
+    return new Promise((resolve, reject) => {
+      if (file.size > MAX_IMAGE) return reject(new Error("图片超过 10MB"));
+      const fd = new FormData();
+      fd.append("file", file, file.name || "paste.png");
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/images");
+      xhr.setRequestHeader("Authorization", "Bearer " + state.token);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          setUploadStatus(`上传中 ${file.name || "图片"} ${pct}%${pct === 100 ? "（处理中…）" : ""}`);
+        }
+      };
+      xhr.onerror = () => reject(new Error("网络错误"));
+      xhr.onload = () => {
+        let data = null;
+        try { data = JSON.parse(xhr.responseText); } catch { data = { error: xhr.responseText }; }
+        if (xhr.status >= 200 && xhr.status < 300 && data && data.markdown) resolve(data);
+        else if (xhr.status === 413) reject(new Error("图片太大（上限 10MB）"));
+        else reject(new Error((data && data.error) || "上传失败 " + xhr.status));
+      };
+      xhr.send(fd);
+    });
+  }
+
+  async function handleImageFiles(files) {
+    const list = Array.from(files || []).filter((f) => f && (f.type.startsWith("image/") || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(f.name || "")));
+    if (!list.length) return;
+    uploading++;
+    $("btn-image").disabled = true;
+    let ok = 0;
+    try {
+      for (const f of list) {
+        try {
+          const res = await uploadImage(f);
+          insertAtCursor(res.markdown);
+          ok++;
+        } catch (e) {
+          setUploadStatus(`上传失败：${f.name || "图片"}：${e.message}`, true);
+          return;
+        }
+      }
+      setUploadStatus(`已上传 ${ok} 张图片（保存草稿后预览可见）`);
+    } finally {
+      uploading--;
+      if (!uploading) $("btn-image").disabled = false;
+    }
+  }
+
+  $("btn-image").addEventListener("click", () => $("file-image").click());
+  $("file-image").addEventListener("change", (e) => {
+    handleImageFiles(e.target.files);
+    e.target.value = "";
+  });
+  $("field-content").addEventListener("paste", (e) => {
+    const files = e.clipboardData && e.clipboardData.files;
+    if (files && files.length) {
+      e.preventDefault();
+      handleImageFiles(files);
+    }
+  });
+  const ta = $("field-content");
+  ["dragenter", "dragover"].forEach((ev) =>
+    ta.addEventListener(ev, (e) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) {
+        e.preventDefault();
+        ta.classList.add("dragover");
+      }
+    })
+  );
+  ta.addEventListener("dragleave", () => ta.classList.remove("dragover"));
+  ta.addEventListener("drop", (e) => {
+    ta.classList.remove("dragover");
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      e.preventDefault();
+      ta.focus();
+      handleImageFiles(e.dataTransfer.files);
+    }
+  });
 })();

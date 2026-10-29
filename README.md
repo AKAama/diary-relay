@@ -34,6 +34,15 @@ Authorization: Bearer <auth_token>
 1. 输入与 `auth_token` 相同的 Bearer Token（保存在浏览器 `localStorage`）
 2. 侧栏可切换 **草稿** / **已发布文章**：点已发布条目即可查看并编辑，**保存到博客** 走 `PUT /posts/:name`
 3. 新建流程不变：撰写 → **保存草稿**（主题预览）→ **打开预览** → **发布到博客**
+4. **图片**：点「插入图片」、粘贴或拖入正文即可上传，光标处插入 `![](/images/YYYY/MM/xxx.jpg)`。
+
+### 图片上传 `POST /images`
+
+- Bearer 鉴权，`multipart/form-data` 字段 `file`；上限 10MB；支持 JPEG/PNG/GIF/WebP（HEIC 明确拒绝，iPhone Safari 选图通常会自动转 JPEG）。
+- 宽度 >1920 等比缩小；JPEG/不透明 PNG/WebP 重编码为 JPEG q82（处理 EXIF 方向）；透明图保留 PNG；GIF 原样。
+- 命名 `images/YYYY/MM/<毫秒时间戳>-<随机>.<ext>`，经 Contents API 提交到 `source` 分支 `source/images/...`（只新建不覆盖），同时写入 `blog_workdir/source/images/...` 供 hexo 预览；预览重写包含 `/images/`。
+- `?dry_run=1`：只处理并写本地预览目录，不提交 GitHub（用于测试）。
+- nginx 需 `client_max_body_size 15m;`。
 
 手机与桌面浏览器均可；仍兼容 iOS 快捷指令调用同一 API。详见 `docs/DEPLOY-1PANEL.md`。
 
@@ -115,6 +124,7 @@ location /preview/ {
     alias /path/to/diary-relay/preview/;
 }
 location / {
+    client_max_body_size 15m;   # 图片上传
     proxy_pass http://127.0.0.1:8080;
     proxy_set_header Authorization $http_authorization;
 }

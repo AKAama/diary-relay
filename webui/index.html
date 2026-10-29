@@ -76,8 +76,13 @@
           </label>
           <label class="field grow">
             <span>正文（Markdown）</span>
-            <textarea id="field-content" rows="16" placeholder="今天……"></textarea>
+            <textarea id="field-content" rows="16" placeholder="今天……（可粘贴或拖入图片）"></textarea>
           </label>
+          <div class="upload-bar">
+            <button id="btn-image" type="button" class="ghost small">插入图片</button>
+            <input id="file-image" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*" multiple hidden />
+            <span id="upload-status" class="muted small" aria-live="polite"></span>
+          </div>
 
           <div class="actions">
             <button id="btn-save" class="primary" type="button">保存草稿</button>
