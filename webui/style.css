@@ -1,0 +1,139 @@
+:root {
+  --bg: #f4f1ea;
+  --card: #fffdf8;
+  --ink: #1f1a17;
+  --muted: #6d635b;
+  --line: #e4dcd2;
+  --primary: #2f6fed;
+  --accent: #0f8a5f;
+  --danger: #c0392b;
+  --shadow: 0 10px 30px rgba(40, 30, 20, 0.08);
+  --radius: 14px;
+  font-family: "PingFang SC", "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161311;
+    --card: #221e1b;
+    --ink: #f5efe8;
+    --muted: #b0a59b;
+    --line: #3a332e;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+body { line-height: 1.5; }
+.hidden { display: none !important; }
+.view { min-height: 100vh; }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+.error { color: var(--danger); margin-top: 0.75rem; }
+.msg { margin: 0.75rem 0 0; padding: 0.75rem 1rem; border-radius: 10px; background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.msg.ok { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.msg.err { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+.login-card { width: min(420px, 100%); margin: 12vh auto; }
+.login-card h1 { margin: 0 0 0.5rem; font-size: 1.6rem; }
+
+.field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+.field.grow { flex: 1; min-height: 0; }
+.field span { font-size: 0.9rem; color: var(--muted); }
+input, textarea, button {
+  font: inherit;
+  color: var(--ink);
+}
+input, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card) 80%, white);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+textarea { resize: vertical; min-height: 280px; line-height: 1.6; }
+
+button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 0.65rem 1.1rem;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+button.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.danger { color: var(--danger); }
+button.ghost { background: transparent; }
+button.small { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
+button:not(:disabled):hover { filter: brightness(1.03); }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(8px);
+  z-index: 5;
+}
+.brand { display: flex; flex-direction: column; gap: 0.15rem; }
+.top-actions, .actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 64px);
+}
+.sidebar {
+  border-right: 1px solid var(--line);
+  padding: 1rem;
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+}
+.sidebar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+.sidebar-head h2 { margin: 0; font-size: 1rem; }
+.draft-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.draft-list button {
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+}
+.draft-list button.active {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+  background: color-mix(in srgb, var(--primary) 12%, var(--card));
+}
+.draft-list .title { display: block; font-weight: 600; }
+.draft-list .sub { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 0.15rem; }
+
+.editor {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    max-height: 220px;
+    overflow: auto;
+  }
+  textarea { min-height: 42vh; }
+  .login-card { margin: 8vh 1rem; }
+}

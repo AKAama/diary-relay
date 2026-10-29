@@ -8,6 +8,8 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
+| GET | `/` | 浏览器 Markdown 编辑器（同域，中文 UI） |
+| GET | `/drafts` | 列出草稿（新→旧） |
 | POST | `/drafts` | 创建草稿 `{title,content,tags[]}` → `{id,preview_url}` |
 | GET | `/drafts/:id` | 读取草稿 |
 | PUT | `/drafts/:id` | 更新并重新生成预览 |
@@ -16,11 +18,21 @@
 | GET | `/healthz` | 健康检查（无需鉴权） |
 | GET | `/preview/<id>/…` | 静态预览（Go 直接托管，nginx 可选） |
 
-除 `/healthz` 与 `/preview/` 外，均需：
+除 `/healthz`、`/preview/` 与编辑器静态页（`/`、`/app.js`、`/style.css`）外，均需：
 
 ```
 Authorization: Bearer <auth_token>
 ```
+
+## 浏览器编辑器
+
+启动服务后打开 `http://127.0.0.1:8080/`（线上为 `https://diary.ismyh.cn/`）：
+
+1. 输入与 `auth_token` 相同的 Bearer Token（保存在浏览器 `localStorage`）
+2. 撰写标题 / 标签 / Markdown → **保存草稿**（服务端生成主题预览）
+3. **打开预览** → 满意后 **发布到博客**（写入 GitHub `source/_posts`）
+
+手机与桌面浏览器均可；仍兼容 iOS 快捷指令调用同一 API。详见 `docs/DEPLOY-1PANEL.md`。
 
 ## 文件名与 front matter
 

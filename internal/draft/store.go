@@ -119,6 +119,33 @@ func (s *Store) Delete(id string) error {
 	return nil
 }
 
+
+// List returns all drafts ordered by updated_at descending (newest first).
+func (s *Store) List() ([]*Draft, error) {
+	rows, err := s.db.Query(
+		`SELECT id, title, content, tags, filename, created_at, updated_at FROM drafts ORDER BY updated_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Draft
+	for rows.Next() {
+		d, err := scanDraft(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []*Draft{}
+	}
+	return out, nil
+}
+
 // FilenamesForPrefix returns filenames in the store that match a prefix
 // (e.g. "DailyJournal-1218") — used when allocating -2/-3 suffixes locally.
 func (s *Store) FilenamesForPrefix(prefix string) ([]string, error) {

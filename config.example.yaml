@@ -1,29 +1,32 @@
 # diary-relay 配置示例 — 复制为 config.yaml 后填写
 
+# 本机开发可用 127.0.0.1:8080；Docker / 1Panel 反代请用 0.0.0.0:8080
 listen: "127.0.0.1:8080"
 
 # API 鉴权：所有业务接口需要 Authorization: Bearer <token>
+# 浏览器编辑器登录使用同一 token（保存在本机 localStorage）
 auth_token: "change-me-to-a-long-random-string"
 
-# GitHub Contents API（仅写 source 分支；切勿配置可写 main 的 token 权限之外）
+# GitHub Contents API（仅写 source 分支；切勿给 token 配置可写 main 的权限）
 github:
   token: "github_pat_xxx"          # fine-grained PAT：Contents: Read and write，仅限该 repo
   owner: "AKAama"
   repo: "AKAama.github.io"
   branch: "source"                 # 永远是 source；部署流水线会处理 main
-  posts_path: "_posts"             # 相对仓库根；实际路径为 source/_posts → 在 Contents API 里是 source/_posts
+  posts_path: "source/_posts"      # Contents API 路径（相对仓库根）
   # api_base_url: "http://127.0.0.1:18080"  # 仅用于本地 mock / 测试
 
 # 本地博客工作副本（必须已含主题目录）
 # 重要：themes/hexo-theme-ZenMind 是 gitlink 且仓库无 .gitmodules，
 # git clone --recurse-submodules 拿不到主题。请把本机已装好主题的副本
 # 拷到服务器，或手动把主题目录放进 blog_workdir/themes/，再指向这里。
-blog_workdir: "/path/to/your/blog-with-theme"
+blog_workdir: "/path/to/your-blog-with-theme"
 
 # 预览静态文件输出根目录（每个草稿一个子目录 <id>/）
 preview_dir: "./preview"
 
 # 返回给客户端的预览 URL 前缀（Go 自身也会挂载 /preview/）
+# 线上请改成 https://diary.ismyh.cn/preview
 preview_base_url: "http://127.0.0.1:8080/preview"
 
 # 草稿 SQLite

@@ -4,15 +4,18 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+
+	"diary-relay/webui"
 )
 
-// Handler builds the HTTP mux. Healthz and /preview/ are public;
+// Handler builds the HTTP mux. Healthz, /preview/, and the web editor are public;
 // /drafts* require Bearer auth.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 
 	auth := BearerAuth(s.Cfg.AuthToken)
+	mux.Handle("GET /drafts", auth(http.HandlerFunc(s.handleListDrafts)))
 	mux.Handle("POST /drafts", auth(http.HandlerFunc(s.handleCreateDraft)))
 	mux.Handle("GET /drafts/{id}", auth(http.HandlerFunc(s.handleGetDraft)))
 	mux.Handle("PUT /drafts/{id}", auth(http.HandlerFunc(s.handleUpdateDraft)))
@@ -29,6 +32,13 @@ func (s *Server) Handler() http.Handler {
 		}
 		fs.ServeHTTP(w, r)
 	})))
+
+	// Same-origin editor UI (no CORS needed).
+	ui := webui.Handler()
+	mux.Handle("GET /{$}", ui)
+	mux.Handle("GET /index.html", ui)
+	mux.Handle("GET /app.js", ui)
+	mux.Handle("GET /style.css", ui)
 
 	return mux
 }

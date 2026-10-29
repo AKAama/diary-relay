@@ -58,6 +58,27 @@ func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte(`{"ok":true}`))
 }
 
+
+func (s *Server) handleListDrafts(w http.ResponseWriter, r *http.Request) {
+	list, err := s.Store.List()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := make([]draftResponse, 0, len(list))
+	base := strings.TrimRight(s.Cfg.PreviewBaseURL, "/")
+	for _, d := range list {
+		out = append(out, draftResponse{
+			ID: d.ID, Title: d.Title, Content: d.Content, Tags: d.Tags,
+			Filename: d.Filename,
+			PreviewURL: base + "/" + d.ID + "/",
+			CreatedAt: d.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: d.UpdatedAt.Format(time.RFC3339),
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func (s *Server) handleCreateDraft(w http.ResponseWriter, r *http.Request) {
 	var req draftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -102,6 +123,8 @@ func (s *Server) handleCreateDraft(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusCreated, map[string]any{
 			"id":          d.ID,
 			"title":       d.Title,
+			"content":     d.Content,
+			"tags":        d.Tags,
 			"filename":    d.Filename,
 			"preview_url": "",
 			"warning":     "preview failed: " + err.Error(),
@@ -166,8 +189,10 @@ func (s *Server) handleUpdateDraft(w http.ResponseWriter, r *http.Request) {
 	previewURL, err := s.regenPreview(d, now)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"id": d.ID, "title": d.Title, "filename": d.Filename,
+			"id": d.ID, "title": d.Title, "content": d.Content, "tags": d.Tags,
+			"filename": d.Filename,
 			"preview_url": "", "warning": "preview failed: " + err.Error(),
+			"created_at": d.CreatedAt.Format(time.RFC3339),
 			"updated_at": d.UpdatedAt.Format(time.RFC3339),
 		})
 		return

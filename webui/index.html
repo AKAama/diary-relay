@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>日记编辑器 · diary-relay</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app">
+    <section id="view-login" class="view hidden">
+      <div class="card login-card">
+        <h1>日记编辑器</h1>
+        <p class="muted">使用与 API 相同的 Bearer Token 登录。Token 仅保存在本机浏览器。</p>
+        <label class="field">
+          <span>鉴权 Token</span>
+          <input id="login-token" type="password" autocomplete="current-password" placeholder="auth_token" />
+        </label>
+        <button id="btn-login" class="primary" type="button">登录</button>
+        <p id="login-error" class="error" hidden></p>
+      </div>
+    </section>
+
+    <section id="view-main" class="view hidden">
+      <header class="topbar">
+        <div class="brand">
+          <strong>日记编辑器</strong>
+          <span id="draft-status" class="muted"></span>
+        </div>
+        <div class="top-actions">
+          <button id="btn-new" type="button" class="ghost">新建</button>
+          <button id="btn-logout" type="button" class="ghost">退出</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <div class="sidebar-head">
+            <h2>草稿</h2>
+            <button id="btn-refresh" type="button" class="ghost small">刷新</button>
+          </div>
+          <ul id="draft-list" class="draft-list"></ul>
+          <p id="draft-empty" class="muted small" hidden>暂无草稿</p>
+        </aside>
+
+        <main class="editor">
+          <label class="field">
+            <span>标题（可空，默认 DailyJournal_MMDD）</span>
+            <input id="field-title" type="text" placeholder="例如：骑行小记" />
+          </label>
+          <label class="field">
+            <span>标签（逗号分隔）</span>
+            <input id="field-tags" type="text" placeholder="例如：骑行,日常" />
+          </label>
+          <label class="field grow">
+            <span>正文（Markdown）</span>
+            <textarea id="field-content" rows="16" placeholder="今天……"></textarea>
+          </label>
+
+          <div class="actions">
+            <button id="btn-save" class="primary" type="button">保存草稿</button>
+            <button id="btn-preview" type="button" disabled>打开预览</button>
+            <button id="btn-publish" class="accent" type="button" disabled>发布到博客</button>
+            <button id="btn-delete" class="danger ghost" type="button" disabled>删除</button>
+          </div>
+          <p id="msg" class="msg" hidden></p>
+          <p id="meta" class="muted small"></p>
+        </main>
+      </div>
+    </section>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

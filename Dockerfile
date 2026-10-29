@@ -1,5 +1,5 @@
-# diary-relay: Go API + Node/Hexo for preview generation
-FROM golang:1.22-bookworm AS build
+# diary-relay: Go API + Node/Hexo for preview generation + embedded web editor
+FROM golang:1.26-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
