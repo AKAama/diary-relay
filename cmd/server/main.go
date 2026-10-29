@@ -37,6 +37,7 @@ func main() {
 	defer store.Close()
 
 	gen := hexo.New(cfg.BlogWorkdir, cfg.PreviewDir)
+	gen.PreviewBaseURL = cfg.PreviewBaseURL
 	var gh *github.Client
 	if cfg.GitHub.Token != "" {
 		gh = github.New(cfg.GitHub.Token, cfg.GitHub.Owner, cfg.GitHub.Repo, cfg.GitHub.Branch, cfg.GitHub.PostsPath)

@@ -130,6 +130,12 @@ echo "==> fetch preview HTML"
 curl -sf "$PREV" -o "$SMOKE_DIR/preview-index.html" || curl -sf "${PREV}index.html" -o "$SMOKE_DIR/preview-index.html"
 ls -la "$SMOKE_DIR/preview/$ID" | head
 grep -q . "$SMOKE_DIR/preview-index.html"
+# Theme CSS must be rooted under /preview/<id>/ (not site "/")
+grep -E 'href="/preview/'"$ID"'/css/' "$SMOKE_DIR/preview-index.html" | head -1 | grep -q css || {
+  echo "CSS hrefs missing /preview/$ID/ prefix:" >&2
+  grep -oE 'href="[^"]*css[^"]*"' "$SMOKE_DIR/preview-index.html" | head -5 >&2 || true
+  exit 1
+}
 # body should appear somewhere in generated site
 grep -R -q "冒烟测试正文" "$SMOKE_DIR/preview/$ID" || {
   echo "preview missing body text"; find "$SMOKE_DIR/preview/$ID" -type f | head -30; exit 1
