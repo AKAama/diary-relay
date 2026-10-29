@@ -29,25 +29,46 @@
           <span id="draft-status" class="muted"></span>
         </div>
         <div class="top-actions">
-          <button id="btn-new" type="button" class="ghost">新建</button>
+          <button id="btn-new" type="button" class="ghost">新建草稿</button>
           <button id="btn-logout" type="button" class="ghost">退出</button>
         </div>
       </header>
 
       <div class="layout">
         <aside class="sidebar">
-          <div class="sidebar-head">
-            <h2>草稿</h2>
-            <button id="btn-refresh" type="button" class="ghost small">刷新</button>
+          <div class="sidebar-tabs" role="tablist">
+            <button id="tab-drafts" type="button" class="tab active" role="tab" aria-selected="true">草稿</button>
+            <button id="tab-posts" type="button" class="tab" role="tab" aria-selected="false">已发布文章</button>
           </div>
-          <ul id="draft-list" class="draft-list"></ul>
-          <p id="draft-empty" class="muted small" hidden>暂无草稿</p>
+
+          <div id="panel-drafts" class="sidebar-panel">
+            <div class="sidebar-head">
+              <h2>草稿</h2>
+              <button id="btn-refresh" type="button" class="ghost small">刷新</button>
+            </div>
+            <ul id="draft-list" class="draft-list"></ul>
+            <p id="draft-empty" class="muted small" hidden>暂无草稿</p>
+          </div>
+
+          <div id="panel-posts" class="sidebar-panel hidden">
+            <div class="sidebar-head">
+              <h2>已发布文章</h2>
+              <button id="btn-refresh-posts" type="button" class="ghost small">刷新</button>
+            </div>
+            <ul id="post-list" class="draft-list"></ul>
+            <p id="post-empty" class="muted small" hidden>暂无已发布文章</p>
+          </div>
         </aside>
 
         <main class="editor">
+          <div id="mode-banner" class="mode-banner hidden" role="status"></div>
           <label class="field">
             <span>标题（可空，默认 DailyJournal_MMDD）</span>
             <input id="field-title" type="text" placeholder="例如：骑行小记" />
+          </label>
+          <label class="field" id="wrap-date" hidden>
+            <span>日期（留空则保留原文日期）</span>
+            <input id="field-date" type="text" placeholder="例如：2025-12-18 23:05:12" />
           </label>
           <label class="field">
             <span>标签（逗号分隔）</span>

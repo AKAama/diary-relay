@@ -45,6 +45,9 @@ func TestListDraftsAndWebUI(t *testing.T) {
 	if !strings.Contains(rr.Body.String(), "日记编辑器") {
 		t.Fatalf("expected Chinese UI title in body")
 	}
+	if !strings.Contains(rr.Body.String(), "已发布文章") {
+		t.Fatalf("expected published-posts section in UI")
+	}
 
 	rr = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/app.js", nil)

@@ -10,7 +10,12 @@
   const state = {
     token: localStorage.getItem(TOKEN_KEY) || "",
     drafts: [],
-    current: null, // draft object or null for new
+    posts: [],
+    sidebar: "drafts", // drafts | posts
+    // mode: new | draft | post
+    mode: "new",
+    current: null, // draft object
+    currentPost: null, // { filename, path, sha, title, tags, date, content }
     busy: false,
   };
 
@@ -74,42 +79,92 @@
 
   function setBusy(busy) {
     state.busy = busy;
-    ["btn-save", "btn-preview", "btn-publish", "btn-delete", "btn-new", "btn-refresh", "btn-login"].forEach((id) => {
-      const el = $(id);
-      if (!el) return;
-      if (id === "btn-login") {
-        el.disabled = busy;
-        return;
-      }
-    });
     $("btn-save").disabled = busy;
     $("btn-refresh").disabled = busy;
+    $("btn-refresh-posts").disabled = busy;
     $("btn-new").disabled = busy;
-    const has = !!(state.current && state.current.id);
-    $("btn-preview").disabled = busy || !has || !state.current.preview_url;
-    $("btn-publish").disabled = busy || !has;
-    $("btn-delete").disabled = busy || !has;
+    const isDraft = state.mode === "draft" && state.current && state.current.id;
+    const isPost = state.mode === "post" && state.currentPost;
+    $("btn-preview").disabled = busy || !isDraft || !state.current.preview_url;
+    $("btn-publish").disabled = busy || !isDraft;
+    $("btn-delete").disabled = busy || !isDraft;
+    if (isPost) {
+      $("btn-save").textContent = "保存到博客";
+      $("btn-preview").classList.add("hidden");
+      $("btn-publish").classList.add("hidden");
+      $("btn-delete").classList.add("hidden");
+    } else {
+      $("btn-save").textContent = state.mode === "draft" ? "保存草稿" : "保存草稿";
+      $("btn-preview").classList.remove("hidden");
+      $("btn-publish").classList.remove("hidden");
+      $("btn-delete").classList.remove("hidden");
+    }
   }
 
-  function fillForm(draft) {
-    state.current = draft;
-    $("field-title").value = (draft && draft.title) || "";
-    $("field-tags").value = draft && draft.tags ? draft.tags.join(", ") : "";
-    $("field-content").value = (draft && draft.content) || "";
-    if (draft && draft.id) {
-      $("draft-status").textContent = "编辑中 · " + draft.filename;
+  function updateModeBanner() {
+    const banner = $("mode-banner");
+    const wrapDate = $("wrap-date");
+    if (state.mode === "post" && state.currentPost) {
+      banner.classList.remove("hidden");
+      banner.className = "mode-banner post";
+      banner.textContent =
+        "正在编辑已发布文章：" +
+        state.currentPost.filename +
+        "（保存将直接更新 GitHub source/_posts）";
+      wrapDate.hidden = false;
+      $("draft-status").textContent = "已发布 · " + state.currentPost.filename;
+      $("meta").textContent =
+        "路径: " +
+        (state.currentPost.path || "") +
+        (state.currentPost.date ? " · 日期 " + state.currentPost.date : "") +
+        (state.currentPost.sha ? " · sha " + state.currentPost.sha.slice(0, 7) : "");
+    } else if (state.mode === "draft" && state.current && state.current.id) {
+      banner.classList.remove("hidden");
+      banner.className = "mode-banner draft";
+      banner.textContent = "正在编辑本地草稿（需点「发布到博客」才会写入仓库）";
+      wrapDate.hidden = true;
+      $("draft-status").textContent = "草稿 · " + state.current.filename;
       $("meta").textContent =
         "ID: " +
-        draft.id +
+        state.current.id +
         " · 创建 " +
-        formatTime(draft.created_at) +
+        formatTime(state.current.created_at) +
         " · 更新 " +
-        formatTime(draft.updated_at);
+        formatTime(state.current.updated_at);
     } else {
+      banner.classList.add("hidden");
+      banner.textContent = "";
+      wrapDate.hidden = true;
       $("draft-status").textContent = "新草稿";
       $("meta").textContent = "";
     }
+  }
+
+  function fillDraftForm(draft) {
+    state.mode = draft && draft.id ? "draft" : "new";
+    state.current = draft;
+    state.currentPost = null;
+    $("field-title").value = (draft && draft.title) || "";
+    $("field-tags").value = draft && draft.tags ? draft.tags.join(", ") : "";
+    $("field-content").value = (draft && draft.content) || "";
+    $("field-date").value = "";
+    updateModeBanner();
     renderList();
+    renderPostList();
+    setBusy(false);
+  }
+
+  function fillPostForm(post) {
+    state.mode = "post";
+    state.current = null;
+    state.currentPost = post;
+    $("field-title").value = (post && post.title) || "";
+    $("field-tags").value = post && post.tags ? post.tags.join(", ") : "";
+    $("field-content").value = (post && post.content) || "";
+    $("field-date").value = (post && post.date) || "";
+    updateModeBanner();
+    renderList();
+    renderPostList();
     setBusy(false);
   }
 
@@ -122,15 +177,54 @@
       const li = document.createElement("li");
       const btn = document.createElement("button");
       btn.type = "button";
-      if (state.current && state.current.id === d.id) btn.classList.add("active");
-      btn.innerHTML =
-        '<span class="title"></span><span class="sub"></span>';
+      if (state.mode === "draft" && state.current && state.current.id === d.id) {
+        btn.classList.add("active");
+      }
+      btn.innerHTML = '<span class="title"></span><span class="sub"></span>';
       btn.querySelector(".title").textContent = d.title || d.filename || d.id;
-      btn.querySelector(".sub").textContent = formatTime(d.updated_at) + " · " + (d.filename || "");
+      btn.querySelector(".sub").textContent =
+        formatTime(d.updated_at) + " · " + (d.filename || "");
       btn.addEventListener("click", () => openDraft(d.id));
       li.appendChild(btn);
       ul.appendChild(li);
     });
+  }
+
+  function renderPostList() {
+    const ul = $("post-list");
+    ul.innerHTML = "";
+    const empty = $("post-empty");
+    empty.hidden = state.posts.length > 0;
+    state.posts.forEach((p) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      if (
+        state.mode === "post" &&
+        state.currentPost &&
+        state.currentPost.filename === p.filename
+      ) {
+        btn.classList.add("active");
+      }
+      btn.innerHTML = '<span class="title"></span><span class="sub"></span>';
+      btn.querySelector(".title").textContent = p.title || p.filename;
+      btn.querySelector(".sub").textContent = p.filename;
+      btn.addEventListener("click", () => openPost(p.filename));
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+  }
+
+  function setSidebar(which) {
+    state.sidebar = which;
+    const draftsTab = $("tab-drafts");
+    const postsTab = $("tab-posts");
+    draftsTab.classList.toggle("active", which === "drafts");
+    postsTab.classList.toggle("active", which === "posts");
+    draftsTab.setAttribute("aria-selected", which === "drafts" ? "true" : "false");
+    postsTab.setAttribute("aria-selected", which === "posts" ? "true" : "false");
+    $("panel-drafts").classList.toggle("hidden", which !== "drafts");
+    $("panel-posts").classList.toggle("hidden", which !== "posts");
   }
 
   async function refreshList() {
@@ -139,30 +233,62 @@
     renderList();
   }
 
+  async function refreshPosts() {
+    const data = await api("/posts");
+    state.posts = Array.isArray(data) ? data : [];
+    // newest-looking filenames last in GitHub dir listing is undefined; keep API order, reverse for recent-first feel
+    state.posts = state.posts.slice().reverse();
+    renderPostList();
+  }
+
   async function openDraft(id) {
     setBusy(true);
     setMsg("");
+    setSidebar("drafts");
     try {
       const d = await api("/drafts/" + encodeURIComponent(id));
-      fillForm(d);
+      fillDraftForm(d);
     } catch (e) {
       setMsg(e.message || "加载失败", "err");
       setBusy(false);
     }
   }
 
+  async function openPost(filename) {
+    setBusy(true);
+    setMsg("");
+    setSidebar("posts");
+    try {
+      const p = await api("/posts/" + encodeURIComponent(filename));
+      fillPostForm(p);
+    } catch (e) {
+      setMsg(e.message || "加载文章失败", "err");
+      setBusy(false);
+    }
+  }
+
   function newDraft() {
-    fillForm(null);
+    setSidebar("drafts");
+    fillDraftForm(null);
     setMsg("");
     $("field-content").focus();
   }
 
-  async function saveDraft() {
+  async function saveCurrent() {
     const content = $("field-content").value;
     if (!content.trim()) {
       setMsg("正文不能为空", "err");
       return;
     }
+    if (state.mode === "post" && state.currentPost) {
+      await savePost();
+      return;
+    }
+    await saveDraft();
+  }
+
+  async function saveDraft() {
+    const content = $("field-content").value;
     const payload = {
       title: $("field-title").value.trim(),
       content,
@@ -189,9 +315,56 @@
         setMsg("草稿已保存", "ok");
       }
       await refreshList();
-      fillForm(d);
+      fillDraftForm(d);
     } catch (e) {
       setMsg(e.message || "保存失败", "err");
+      setBusy(false);
+    }
+  }
+
+  async function savePost() {
+    if (!state.currentPost || !state.currentPost.sha) {
+      setMsg("缺少文件 sha，请重新打开文章", "err");
+      return;
+    }
+    if (
+      !confirm(
+        "确认将修改保存到 GitHub source/_posts/" +
+          state.currentPost.filename +
+          "？\n（若 PAT 仍为只读，会返回 403）"
+      )
+    ) {
+      return;
+    }
+    const payload = {
+      title: $("field-title").value.trim(),
+      content: $("field-content").value,
+      tags: parseTags($("field-tags").value),
+      date: $("field-date").value.trim(),
+      sha: state.currentPost.sha,
+    };
+    setBusy(true);
+    setMsg("正在更新已发布文章…");
+    try {
+      const p = await api("/posts/" + encodeURIComponent(state.currentPost.filename), {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      let msg = "已更新：" + (p.filename || state.currentPost.filename);
+      setMsg(msg, "ok");
+      if (p.commit_url) {
+        const a = document.createElement("a");
+        a.href = p.commit_url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = "查看提交";
+        $("msg").appendChild(document.createTextNode(" "));
+        $("msg").appendChild(a);
+      }
+      await refreshPosts();
+      fillPostForm(p);
+    } catch (e) {
+      setMsg(e.message || "更新失败", "err");
       setBusy(false);
     }
   }
@@ -212,9 +385,10 @@
     setBusy(true);
     setMsg("发布中…");
     try {
-      const res = await api("/drafts/" + encodeURIComponent(state.current.id) + "/publish", {
-        method: "POST",
-      });
+      const res = await api(
+        "/drafts/" + encodeURIComponent(state.current.id) + "/publish",
+        { method: "POST" }
+      );
       setMsg("发布成功：" + (res.commit_url || res.filename || "完成"), "ok");
       if (res.commit_url) {
         const a = document.createElement("a");
@@ -225,6 +399,9 @@
         $("msg").appendChild(document.createTextNode(" "));
         $("msg").appendChild(a);
       }
+      try {
+        await refreshPosts();
+      } catch (_) {}
     } catch (e) {
       setMsg(e.message || "发布失败", "err");
     } finally {
@@ -254,7 +431,14 @@
     }
     try {
       await refreshList();
+      try {
+        await refreshPosts();
+      } catch (e) {
+        // list posts may fail if github not configured; still allow drafts
+        console.warn("refresh posts", e);
+      }
       show("main");
+      setSidebar("drafts");
       if (state.drafts.length) {
         await openDraft(state.drafts[0].id);
       } else {
@@ -294,7 +478,9 @@
     localStorage.removeItem(TOKEN_KEY);
     state.token = "";
     state.current = null;
+    state.currentPost = null;
     state.drafts = [];
+    state.posts = [];
     $("login-token").value = "";
     show("login");
   });
@@ -303,14 +489,39 @@
     setBusy(true);
     try {
       await refreshList();
-      setMsg("列表已刷新", "ok");
+      setMsg("草稿列表已刷新", "ok");
     } catch (e) {
       setMsg(e.message || "刷新失败", "err");
     } finally {
       setBusy(false);
     }
   });
-  $("btn-save").addEventListener("click", saveDraft);
+  $("btn-refresh-posts").addEventListener("click", async () => {
+    setBusy(true);
+    try {
+      await refreshPosts();
+      setMsg("已发布列表已刷新", "ok");
+    } catch (e) {
+      setMsg(e.message || "刷新失败", "err");
+    } finally {
+      setBusy(false);
+    }
+  });
+  $("tab-drafts").addEventListener("click", () => setSidebar("drafts"));
+  $("tab-posts").addEventListener("click", async () => {
+    setSidebar("posts");
+    if (!state.posts.length) {
+      setBusy(true);
+      try {
+        await refreshPosts();
+      } catch (e) {
+        setMsg(e.message || "加载已发布文章失败", "err");
+      } finally {
+        setBusy(false);
+      }
+    }
+  });
+  $("btn-save").addEventListener("click", saveCurrent);
   $("btn-preview").addEventListener("click", openPreview);
   $("btn-publish").addEventListener("click", publishDraft);
   $("btn-delete").addEventListener("click", deleteDraft);

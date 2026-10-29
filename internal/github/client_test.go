@@ -123,3 +123,46 @@ func TestRefuseNonSourceBranch(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+func TestGetPostAndListPosts(t *testing.T) {
+	md := "---\ntitle: t\n---\nbody\n"
+	b64 := base64.StdEncoding.EncodeToString([]byte(md))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/contents/source/_posts") {
+			_ = json.NewEncoder(w).Encode([]map[string]string{
+				{"name": "a.md", "path": "source/_posts/a.md", "type": "file", "sha": "s"},
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"name": "a.md", "path": "source/_posts/a.md", "type": "file", "sha": "s",
+			"encoding": "base64", "content": b64 + "\n",
+		})
+	}))
+	defer srv.Close()
+	c := New("tok", "AKAama", "AKAama.github.io", "source", "source/_posts")
+	c.BaseURL = srv.URL
+	c.HTTPClient = srv.Client()
+	list, err := c.ListPosts()
+	if err != nil || len(list) != 1 || list[0].Name != "a.md" {
+		t.Fatalf("%v %#v", err, list)
+	}
+	f, err := c.GetPost("a.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Content != md || f.SHA != "s" {
+		t.Fatalf("%#v", f)
+	}
+	if _, err := c.GetPost("../a.md"); err == nil {
+		t.Fatal("expected path error")
+	}
+}
+
+func TestUpdateFileRequiresSHA(t *testing.T) {
+	c := New("tok", "AKAama", "AKAama.github.io", "source", "source/_posts")
+	_, err := c.UpdateFile("a.md", "x", "m", "")
+	if err == nil || !strings.Contains(err.Error(), "sha") {
+		t.Fatalf("err %v", err)
+	}
+}

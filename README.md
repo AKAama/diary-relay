@@ -15,6 +15,9 @@
 | PUT | `/drafts/:id` | 更新并重新生成预览 |
 | POST | `/drafts/:id/publish` | 提交 md 到 `source` 分支，返回 commit URL |
 | DELETE | `/drafts/:id` | 删除草稿与预览 |
+| GET | `/posts` | 列出 `source/_posts` 下已发布 `.md` |
+| GET | `/posts/:name` | 读取已发布文章（解析 front matter，返回 sha） |
+| PUT | `/posts/:name` | 更新已发布文章（需 sha 乐观锁） |
 | GET | `/healthz` | 健康检查（无需鉴权） |
 | GET | `/preview/<id>/…` | 静态预览（Go 直接托管，nginx 可选） |
 
@@ -29,8 +32,8 @@ Authorization: Bearer <auth_token>
 启动服务后打开 `http://127.0.0.1:8080/`（线上为 `https://diary.ismyh.cn/`）：
 
 1. 输入与 `auth_token` 相同的 Bearer Token（保存在浏览器 `localStorage`）
-2. 撰写标题 / 标签 / Markdown → **保存草稿**（服务端生成主题预览）
-3. **打开预览** → 满意后 **发布到博客**（写入 GitHub `source/_posts`）
+2. 侧栏可切换 **草稿** / **已发布文章**：点已发布条目即可查看并编辑，**保存到博客** 走 `PUT /posts/:name`
+3. 新建流程不变：撰写 → **保存草稿**（主题预览）→ **打开预览** → **发布到博客**
 
 手机与桌面浏览器均可；仍兼容 iOS 快捷指令调用同一 API。详见 `docs/DEPLOY-1PANEL.md`。
 

@@ -46,6 +46,30 @@ type publishResponse struct {
 	CommitURL string `json:"commit_url"`
 }
 
+type postListItem struct {
+	Filename string `json:"filename"`
+	Path     string `json:"path"`
+	Title    string `json:"title,omitempty"`
+}
+
+type postDetailResponse struct {
+	Filename string   `json:"filename"`
+	Path     string   `json:"path"`
+	SHA      string   `json:"sha"`
+	Title    string   `json:"title"`
+	Tags     []string `json:"tags"`
+	Date     string   `json:"date,omitempty"`
+	Content  string   `json:"content"`
+}
+
+type updatePostRequest struct {
+	Title   string   `json:"title"`
+	Content string   `json:"content"`
+	Tags    []string `json:"tags"`
+	Date    string   `json:"date"` // optional; empty keeps existing
+	SHA     string   `json:"sha"`
+}
+
 func (s *Server) now() time.Time {
 	if s.Now != nil {
 		return s.Now().In(s.Cfg.Location)
@@ -296,4 +320,170 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 
 func writeErr(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
+}
+
+func (s *Server) requireGitHub(w http.ResponseWriter) bool {
+	if s.GH == nil || s.Cfg.GitHub.Token == "" {
+		writeErr(w, http.StatusServiceUnavailable, "github token not configured")
+		return false
+	}
+	return true
+}
+
+func (s *Server) handleListPosts(w http.ResponseWriter, r *http.Request) {
+	if !s.requireGitHub(w) {
+		return
+	}
+	list, err := s.GH.ListPosts()
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, "list posts: "+err.Error())
+		return
+	}
+	out := make([]postListItem, 0, len(list))
+	for _, p := range list {
+		title := draft.TitleFromFilename(p.Name, s.now())
+		out = append(out, postListItem{Filename: p.Name, Path: p.Path, Title: title})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleGetPost(w http.ResponseWriter, r *http.Request) {
+	if !s.requireGitHub(w) {
+		return
+	}
+	name, err := github.SafePostFilename(r.PathValue("name"))
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	f, err := s.GH.GetPost(name)
+	if err != nil {
+		if err.Error() == "not found" {
+			writeErr(w, http.StatusNotFound, "post not found")
+			return
+		}
+		if strings.Contains(err.Error(), "basename") || strings.Contains(err.Error(), "invalid filename") || strings.Contains(err.Error(), "must end") {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeErr(w, http.StatusBadGateway, "get post: "+err.Error())
+		return
+	}
+	parsed := draft.ParseMarkdown(f.Content)
+	title := parsed.Title
+	if title == "" {
+		title = draft.TitleFromFilename(f.Name, s.now())
+	}
+	tags := parsed.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	writeJSON(w, http.StatusOK, postDetailResponse{
+		Filename: f.Name,
+		Path:     f.Path,
+		SHA:      f.SHA,
+		Title:    title,
+		Tags:     tags,
+		Date:     parsed.Date,
+		Content:  strings.TrimSuffix(parsed.Body, "\n"),
+	})
+}
+
+func (s *Server) handleUpdatePost(w http.ResponseWriter, r *http.Request) {
+	if !s.requireGitHub(w) {
+		return
+	}
+	name, err := github.SafePostFilename(r.PathValue("name"))
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var req updatePostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if strings.TrimSpace(req.SHA) == "" {
+		writeErr(w, http.StatusBadRequest, "sha is required")
+		return
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		writeErr(w, http.StatusBadRequest, "content is required")
+		return
+	}
+	// Fetch current to preserve date when client omits it.
+	cur, err := s.GH.GetPost(name)
+	if err != nil {
+		if err.Error() == "not found" {
+			writeErr(w, http.StatusNotFound, "post not found")
+			return
+		}
+		writeErr(w, http.StatusBadGateway, "get post: "+err.Error())
+		return
+	}
+	parsed := draft.ParseMarkdown(cur.Content)
+	dateStr := strings.TrimSpace(req.Date)
+	if dateStr == "" {
+		dateStr = parsed.Date
+	}
+	if dateStr == "" {
+		dateStr = s.now().Format("2006-01-02 15:04:05")
+	}
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		title = parsed.Title
+	}
+	if title == "" {
+		title = draft.TitleFromFilename(name, s.now())
+	}
+	tags := req.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	md := draft.BuildMarkdownWithDate(title, req.Content, tags, dateStr)
+	msg := fmt.Sprintf("diary: update %s", name)
+	commitURL, err := s.GH.UpdateFile(name, md, msg, req.SHA)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, "update: "+err.Error())
+		return
+	}
+	// Re-fetch for new sha when possible; fall back to response without sha refresh.
+	updated, getErr := s.GH.GetPost(name)
+	sha := req.SHA
+	pathStr := cur.Path
+	if getErr == nil {
+		sha = updated.SHA
+		pathStr = updated.Path
+		parsed = draft.ParseMarkdown(updated.Content)
+		title = parsed.Title
+		if title == "" {
+			title = draft.TitleFromFilename(name, s.now())
+		}
+		tags = parsed.Tags
+		if tags == nil {
+			tags = []string{}
+		}
+		dateStr = parsed.Date
+		writeJSON(w, http.StatusOK, map[string]any{
+			"filename":   name,
+			"path":       pathStr,
+			"sha":        sha,
+			"title":      title,
+			"tags":       tags,
+			"date":       dateStr,
+			"content":    strings.TrimSuffix(parsed.Body, "\n"),
+			"commit_url": commitURL,
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"filename":   name,
+		"path":       pathStr,
+		"sha":        sha,
+		"title":      title,
+		"tags":       tags,
+		"date":       dateStr,
+		"content":    req.Content,
+		"commit_url": commitURL,
+	})
 }
